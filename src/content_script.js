@@ -1,10 +1,18 @@
-const base64Pattern = /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/;
-const base64URLSafePattern = /^([A-Za-z0-9_-]{4})*([A-Za-z0-9_-]{3}=|[A-Za-z0-9_-]{2}==)?$/;
+////////////////////////////////////////////////////////////////////////////////
+/// Patterns & Variables
+////////////////////////////////////////////////////////////////////////////////
+const base64Pattern = /^([A-Za-z0-9+/]{4})*(([A-Za-z0-9+/]{3}=)|([A-Za-z0-9+/]{2}==))?$/;
+const base64URLSafePattern = /^([A-Za-z0-9_-]{4})*(([A-Za-z0-9_-]{3}=)|([A-Za-z0-9_-]{2}==))?$/;
 const patternList = [base64Pattern, base64URLSafePattern];
+
+const URLPattern = /^(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/;
 
 let decodedTextMap = new Map();
 
-function detectAndDecodePatternRecursive(node, pattern) {
+////////////////////////////////////////////////////////////////////////////////
+/// Functions
+////////////////////////////////////////////////////////////////////////////////
+function detectAndDecodeTextRecursive(node, pattern) {
   if (node.nodeType === Node.TEXT_NODE) {
     const matches = node.textContent.match(pattern);
     if (matches) {
@@ -13,25 +21,43 @@ function detectAndDecodePatternRecursive(node, pattern) {
   }
 
   for (let i = 0; i < node.childNodes.length; i++) {
-    detectAndDecodePatternRecursive(node.childNodes[i], pattern);
+    detectAndDecodeTextRecursive(node.childNodes[i], pattern);
   }
 }
 
 function insertNode(node, text) {
-  const divTag = document.createElement("div");
-  divTag.classList.add("decoded-text");
+  let newTag = document.createElement("div");
+  newTag.classList.add("inserted-tag");
 
-  const newNode = document.createTextNode(text);
-  divTag.appendChild(newNode);
+  if (isUrl(text)) {
+    let newATag = document.createElement("a");
+    newATag.href = text;
+    newATag.textContent = "[ " + text + " ]";
+    newTag.appendChild(newATag);
+  } else {
+    newTag.textContent = "[ " + text + " ]";
+  }
 
   const parentNode = node.parentNode;
-  parentNode.insertBefore(divTag, node.nextSibling);
+  parentNode.insertBefore(newTag, node.nextSibling);
 }
 
-// 페이지 로드 완료 시 초기 디코딩 수행
+function isUrl(text) {
+  return URLPattern.test(text);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Main
+////////////////////////////////////////////////////////////////////////////////
+let initialized = false;
 document.addEventListener('DOMContentLoaded', () => {
+  if (initialized) {
+    return;
+  }
+
   patternList.forEach(pattern => {
-    detectAndDecodePatternRecursive(document.body, pattern);
+    detectAndDecodeTextRecursive(document.body, pattern);
   });
 
   for (const [node, text] of decodedTextMap.entries()) {
@@ -39,26 +65,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   decodedTextMap.clear();
-});
 
-// MutationObserver 생성 및 설정
-const observer = new MutationObserver(mutations => {
-  mutations.forEach(mutation => {
-    mutation.addedNodes.forEach(node => {
-      patternList.forEach(pattern => {
-        detectAndDecodePatternRecursive(node, pattern);
+  // Create MutationObserver
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        patternList.forEach(pattern => {
+          detectAndDecodeTextRecursive(node, pattern);
+        });
       });
     });
+
+    for (const [node, text] of decodedTextMap.entries()) {
+      insertNode(node, text);
+    }
+
+    decodedTextMap.clear();
   });
 
-  for (const [node, text] of decodedTextMap.entries()) {
-    insertNode(node, text);
-  }
+  // Observe
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
 
-  decodedTextMap.clear();
-});
-
-observer.observe(document.body, {
-  childList: true,
-  subtree: true
+  initialized = true;
 });
