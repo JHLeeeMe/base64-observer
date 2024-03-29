@@ -1,11 +1,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 /// Patterns & Variables
 ////////////////////////////////////////////////////////////////////////////////
-const base64Pattern = /^([A-Za-z0-9+/]{4})*(([A-Za-z0-9+/]{3}=)|([A-Za-z0-9+/]{2}==))?$/;
-const base64URLSafePattern = /^([A-Za-z0-9_-]{4})*(([A-Za-z0-9_-]{3}=)|([A-Za-z0-9_-]{2}==))?$/;
-const patternList = [base64Pattern, base64URLSafePattern];
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:(?:[A-Za-z0-9+/]{3}=)|(?:[A-Za-z0-9+/]{2}==))?$/;
+const BASE64_URLSAFE_PATTERN = /^(?:[A-Za-z0-9_-]{4})*(?:(?:[A-Za-z0-9_-]{3}=)|(?:[A-Za-z0-9_-]{2}==))?$/;
+const PATTERN_LIST = [BASE64_PATTERN, BASE64_URLSAFE_PATTERN];
 
-const URLPattern = /^(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/;
+const URL_PATTERN = /^(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/;
+
+const EXCLUDED_TAGS = ["button", "a", "i"];
 
 let decodedTextMap = new Map();
 
@@ -13,10 +15,13 @@ let decodedTextMap = new Map();
 /// Functions
 ////////////////////////////////////////////////////////////////////////////////
 function detectAndDecodeTextRecursive(node, pattern) {
-  if (node.nodeType === Node.TEXT_NODE) {
+  if (node.nodeType === Node.TEXT_NODE &&
+      !EXCLUDED_TAGS.includes(node.parentElement.tagName.toLowerCase())) {
     const matches = node.textContent.match(pattern);
-    if (matches) {
-        decodedTextMap.set(node, atob(matches[0])) ;
+    if (matches &&
+        matches[0] !== "" &&
+        !/^\d+$/.test(matches[0])) {
+      decodedTextMap.set(node, atob(matches[0])) ;
     }
   }
 
@@ -43,7 +48,7 @@ function insertNode(node, text) {
 }
 
 function isUrl(text) {
-  return URLPattern.test(text);
+  return URL_PATTERN.test(text);
 }
 
 
@@ -56,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  patternList.forEach(pattern => {
+  PATTERN_LIST.forEach(pattern => {
     detectAndDecodeTextRecursive(document.body, pattern);
   });
 
@@ -70,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
       mutation.addedNodes.forEach(node => {
-        patternList.forEach(pattern => {
+        PATTERN_LIST.forEach(pattern => {
           detectAndDecodeTextRecursive(node, pattern);
         });
       });

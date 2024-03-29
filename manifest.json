@@ -7,7 +7,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["/src/content_script.js"],
+      "js": ["/src/content-script_start.js"],
       "run_at": "document_start"
     }
   ],
