@@ -9,6 +9,8 @@ const URL_PATTERN = /^(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1
 
 const EXCLUDED_TAGS = ["button", "a", "i"];
 
+let messageElem = null;
+let observer = null;
 let decodedTextMap = new Map();
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,14 +53,41 @@ function isUrl(text) {
   return URL_PATTERN.test(text);
 }
 
+function showMessage(message) {
+  messageElem.textContent = message;
+  messageElem.style.display = "block";
+
+  setTimeout(() => {  // fade-in
+    messageElem.style.opacity = 1;
+  }, 10);
+
+  setTimeout(() => {  // fade-out
+    messageElem.style.opacity = 0;
+    setTimeout(() => {
+      messageElem.style.display = "none";
+    }, 500);
+  }, 1000);
+}
+
+function preventDefaultContextMenu(event) {
+  event.preventDefault();
+  document.removeEventListener('contextmenu', preventDefaultContextMenu);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Main
 ////////////////////////////////////////////////////////////////////////////////
-let initialized = false;
 document.addEventListener('DOMContentLoaded', () => {
-  if (initialized) {
+  if (observer !== null) {
     return;
   }
+  
+  // insert <div class="inserted-tag" id="message"></div>
+  let messageTag = document.createElement("div");
+  messageTag.classList.add("inserted-tag");
+  messageTag.id = "message";
+  document.body.insertBefore(messageTag, document.body.firstChild);
+  messageElem = document.querySelector(".inserted-tag#message");
 
   PATTERN_LIST.forEach(pattern => {
     detectAndDecodeTextRecursive(document.body, pattern);
@@ -71,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
   decodedTextMap.clear();
 
   // Create MutationObserver
-  const observer = new MutationObserver(mutations => {
+  observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
       mutation.addedNodes.forEach(node => {
         PATTERN_LIST.forEach(pattern => {
@@ -92,6 +121,35 @@ document.addEventListener('DOMContentLoaded', () => {
     childList: true,
     subtree: true
   });
+});
 
-  initialized = true;
+// Select text & right mouse down -> copy decoded text to clipboard
+document.addEventListener('mousedown', function(event) {
+  if (event.button !== 2) {
+    return;
+  }
+
+  const selectedText = window.getSelection().toString().trim();
+
+  if (selectedText.length === 0) {
+    return;
+  }
+
+  if (!BASE64_PATTERN.test(selectedText) &&
+      !BASE64_URLSAFE_PATTERN.test(selectedText)) {
+    return;
+  }
+
+  document.addEventListener('contextmenu', preventDefaultContextMenu);
+
+  event.preventDefault();
+
+  const decodedText = atob(selectedText);
+  navigator.clipboard
+    .writeText(decodedText)
+    .then(() => {
+      showMessage("Copied");
+    }, () => {
+      showMessage("Failed to copy");
+    });
 });
