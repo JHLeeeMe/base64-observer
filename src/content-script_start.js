@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:(?:[A-Za-z0-9+/]{3}=)|(?:[A-Za-z0-9+/]{2}==))?$/;
 const BASE64_URLSAFE_PATTERN = /^(?:[A-Za-z0-9_-]{4})*(?:(?:[A-Za-z0-9_-]{3}=)|(?:[A-Za-z0-9_-]{2}==))?$/;
-const PATTERN_LIST = [BASE64_PATTERN, BASE64_URLSAFE_PATTERN];
+const BASE64_PATTERN_LIST = [BASE64_PATTERN, BASE64_URLSAFE_PATTERN];
 
 const URL_PATTERN = /^(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/;
 
@@ -38,6 +38,7 @@ function insertNode(node, text) {
 
   if (isUrl(text)) {
     let newATag = document.createElement("a");
+    newATag.classList.add("inserted-tag");
     newATag.href = text;
     newATag.textContent = "[ " + text + " ]";
     newTag.appendChild(newATag);
@@ -89,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.insertBefore(messageTag, document.body.firstChild);
   messageElem = document.querySelector(".inserted-tag#message");
 
-  PATTERN_LIST.forEach(pattern => {
+  BASE64_PATTERN_LIST.forEach(pattern => {
     detectAndDecodeTextRecursive(document.body, pattern);
   });
 
@@ -103,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
       mutation.addedNodes.forEach(node => {
-        PATTERN_LIST.forEach(pattern => {
+        BASE64_PATTERN_LIST.forEach(pattern => {
           detectAndDecodeTextRecursive(node, pattern);
         });
       });
