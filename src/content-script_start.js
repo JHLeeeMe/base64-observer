@@ -7,7 +7,7 @@ const BASE64_PATTERN_LIST = [BASE64_PATTERN, BASE64_URLSAFE_PATTERN];
 
 const URL_PATTERN = /^(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/;
 
-const EXCLUDED_TAGS = ["button", "a", "i"];
+const EXCLUDED_TAGS = ["button", "a", "i", "em"];
 
 let messageElem = null;
 let observer = null;
@@ -133,6 +133,10 @@ document.addEventListener('mousedown', function(event) {
   const selectedText = window.getSelection().toString().trim();
 
   if (selectedText.length === 0) {
+    return;
+  }
+
+  if (/^\d+$/.test(selectedText)) {
     return;
   }
 
