@@ -1,0 +1,22 @@
+body {
+    background-color: #343a40; /* 어두운 회색 */
+    color: #f8f9fa; /* 매우 밝은 회색 */
+
+    width: 200px;
+    padding: 10px;
+}
+
+#toggle-btn.checkboxButton {
+    display: none; /* 실제 체크박스 숨기기 */
+}
+
+#toggle-btn.checkboxButton + label {
+    background-color: #4285F4;
+    color: white;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+#toggle-btn.checkboxButton:checked + label {
+    background-color: #34A853;
+}
