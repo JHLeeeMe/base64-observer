@@ -12,6 +12,7 @@ const EXCLUDED_TAGS = ["button", "a", "i", "em"];
 let messageElem = null;
 let observer = null;
 let decodedTextMap = new Map();
+let eventListeners = [];
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Functions
@@ -75,10 +76,41 @@ function preventDefaultContextMenu(event) {
   document.removeEventListener('contextmenu', preventDefaultContextMenu);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// Main
-////////////////////////////////////////////////////////////////////////////////
-document.addEventListener('DOMContentLoaded', () => {
+function mouseDownListener(event) {
+  if (event.button !== 2) {
+    return;
+  }
+
+  const selectedText = window.getSelection().toString().trim();
+
+  if (selectedText.length === 0) {
+    return;
+  }
+
+  if (/^\d+$/.test(selectedText)) {
+    return;
+  }
+
+  if (!BASE64_PATTERN.test(selectedText) &&
+      !BASE64_URLSAFE_PATTERN.test(selectedText)) {
+    return;
+  }
+
+  document.addEventListener('contextmenu', preventDefaultContextMenu);
+
+  event.preventDefault();
+
+  const decodedText = atob(selectedText);
+  navigator.clipboard
+    .writeText(decodedText)
+    .then(() => {
+      showMessage("Copied");
+    }, () => {
+      showMessage("Failed to copy");
+    });
+}
+
+function DOMContentLoadedListener() {
   if (observer !== null) {
     return;
   }
@@ -122,39 +154,53 @@ document.addEventListener('DOMContentLoaded', () => {
     childList: true,
     subtree: true
   });
-});
+}
 
-// Select text & right mouse down -> copy decoded text to clipboard
-document.addEventListener('mousedown', function(event) {
-  if (event.button !== 2) {
-    return;
+function removeAllEventListeners() {
+  eventListeners.forEach(({type, listener}) => {
+    document.removeEventListener(type, listener);
+  });
+  eventListeners = [];
+}
+
+function init() {
+  document.addEventListener('DOMContentLoaded', DOMContentLoadedListener);
+  eventListeners.push({
+    type: 'DOMContentLoaded', listener: DOMContentLoadedListener});
+
+  document.addEventListener('mousedown', mouseDownListener);
+  eventListeners.push({
+    type: 'mousedown', listener: mouseDownListener});
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Main
+////////////////////////////////////////////////////////////////////////////////
+//let isActive = true;
+
+if (!chrome.storage.local.get("isActive")) {
+  /// Initialization
+  ///   1. Detect & Decode encoded-text
+  ///   2. Create & Run Observer for new loaded elements
+  ///   3. Select text & right mouse down -> copy decoded text to clipboard
+  ///
+  init();
+}
+
+/// Add message Listener for popup menu
+///
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.from === "backgroundjs-popupjs-toggleBtn") {
+    //isActive = message.enabled;
+    const isActive = chrome.storage.local.get("isActive");
+    if (isActive) {
+      console.log("hi");
+      init();
+    } else {
+      removeAllEventListeners();
+      observer.disconnect();
+      document.querySelectorAll('.inserted-tag').forEach(node => node.remove());
+      messageElem = null;
+    }
   }
-
-  const selectedText = window.getSelection().toString().trim();
-
-  if (selectedText.length === 0) {
-    return;
-  }
-
-  if (/^\d+$/.test(selectedText)) {
-    return;
-  }
-
-  if (!BASE64_PATTERN.test(selectedText) &&
-      !BASE64_URLSAFE_PATTERN.test(selectedText)) {
-    return;
-  }
-
-  document.addEventListener('contextmenu', preventDefaultContextMenu);
-
-  event.preventDefault();
-
-  const decodedText = atob(selectedText);
-  navigator.clipboard
-    .writeText(decodedText)
-    .then(() => {
-      showMessage("Copied");
-    }, () => {
-      showMessage("Failed to copy");
-    });
 });
