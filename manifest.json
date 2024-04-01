@@ -4,6 +4,10 @@
   "version": "0.1",
   "description": "Detect & Decode base64 encoded text in current web page",
 
+  "background": {
+    "service_worker": "/src/background.js"
+  },
+
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
@@ -20,6 +24,7 @@
 
   "permissions": [
     "https://*/*",
-    "http://*/*"
+    "http://*/*",
+    "storage"
   ]
 }
