@@ -1,22 +1,31 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Base64 Observer",
   "version": "0.1",
   "description": "Detect & Decode base64 encoded text in current web page",
 
+  "background": {
+    "service_worker": "/src/background.js"
+  },
+
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content_script.js"]
+      "js": ["/src/content-script_start.js"],
+      "css": ["/src/css/content-script_start.css"],
+      "run_at": "document_start"
     }
   ],
 
-  "browser_action": {
-    "default_title": "Base64 Observer"
+  "action": {
+    "default_title": "Base64 Observer",
+    "default_popup": "/src/templates/popup.html"
   },
 
   "permissions": [
     "https://*/*",
-    "http://*/*"
+    "http://*/*",
+    "storage",
+    "activeTab"
   ]
 }
