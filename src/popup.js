@@ -1,22 +1,22 @@
-/*
-document.getElementById('toggle-btn').addEventListener("change", () => {
-    const isChecked = document.getElementById("toggle-btn").checked;
-    chrome.runtime.sendMessage({ action: "toggle", enabled: isChecked });
-});
-*/
+/// popup.js
+///
+///
 
-document.addEventListener('DOMContentLoaded', () => {
-  const toggleBtn = document.getElementById('toggle-btn');
+let toggleBtn = null;
+let localData = null;
 
-  chrome.storage.local.get('isActive', (data) => {
-    toggleBtn.checked = !!data.isActive;
-  });
+document.addEventListener("DOMContentLoaded", async () => {
+  toggleBtn = document.getElementById('toggle-btn');
+  localData = await chrome.storage.local.get("isActive");
+  toggleBtn.checked = localData.isActive;
 
-  toggleBtn.addEventListener("change", () => {
-    const isChecked = toggleBtn.checked;
-    
-    chrome.storage.local.set({isActive: isChecked});
+  toggleBtn.addEventListener("change", async () => {
+    localData = await chrome.storage.local.get("isActive");
+    toggleBtn.checked = !localData.isActive;
 
-    chrome.runtime.sendMessage({from: "popupjs-toggleBtn", enabled: isChecked});
+    chrome.storage.local.set({isActive: toggleBtn.checked});
+
+    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+    chrome.runtime.sendMessage({from: "popupjs-toggleBtn", currentTabs: tabs});
   });
 });

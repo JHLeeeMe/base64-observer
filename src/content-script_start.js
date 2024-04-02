@@ -1,3 +1,7 @@
+/// content-script_start.js
+///
+///
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Patterns & Variables
 ////////////////////////////////////////////////////////////////////////////////
@@ -163,10 +167,19 @@ function removeAllEventListeners() {
   eventListeners = [];
 }
 
+/// Initialization
+///   1. Detect & Decode encoded-text
+///   2. Create & Run Observer for new loaded elements
+///   3. Select text & right mouse down -> copy decoded text to clipboard
+///
 function init() {
-  document.addEventListener('DOMContentLoaded', DOMContentLoadedListener);
+  document.addEventListener("DOMContentLoaded", DOMContentLoadedListener);
   eventListeners.push({
     type: 'DOMContentLoaded', listener: DOMContentLoadedListener});
+
+  if (document.readyState !== "loading") {  
+    DOMContentLoadedListener();
+  }
 
   document.addEventListener('mousedown', mouseDownListener);
   eventListeners.push({
@@ -176,29 +189,24 @@ function init() {
 ////////////////////////////////////////////////////////////////////////////////
 /// Main
 ////////////////////////////////////////////////////////////////////////////////
-//let isActive = true;
-
-if (!chrome.storage.local.get("isActive")) {
-  /// Initialization
-  ///   1. Detect & Decode encoded-text
-  ///   2. Create & Run Observer for new loaded elements
-  ///   3. Select text & right mouse down -> copy decoded text to clipboard
-  ///
-  init();
-}
+chrome.storage.local.get("isActive", (localData) => {
+  if (localData.isActive) {
+    init();
+  }
+});
 
 /// Add message Listener for popup menu
 ///
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.from === "backgroundjs-popupjs-toggleBtn") {
-    //isActive = message.enabled;
-    const isActive = chrome.storage.local.get("isActive");
-    if (isActive) {
-      console.log("hi");
+    if (message.enabled) {
       init();
     } else {
       removeAllEventListeners();
+
       observer.disconnect();
+      observer = null;
+
       document.querySelectorAll('.inserted-tag').forEach(node => node.remove());
       messageElem = null;
     }
