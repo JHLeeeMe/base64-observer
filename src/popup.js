@@ -15,7 +15,7 @@ async function updateToggleBtnStatus() {
   }
 }
 
-async function addToggleBtnChangeListener() {
+async function addToggleBtnChangeEventListener() {
   const toggleBtn = document.getElementById("toggle-btn");
   if (toggleBtn === null) {
     console.warn("toggleBtn is null.");
@@ -39,7 +39,7 @@ async function addToggleBtnChangeListener() {
 
 async function DOMContentLoadedListener() {
   await updateToggleBtnStatus();
-  addToggleBtnChangeListener();
+  addToggleBtnChangeEventListener();
 }
 
 function init() {
