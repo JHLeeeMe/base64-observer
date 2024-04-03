@@ -11,7 +11,7 @@ const BASE64_PATTERN_LIST = [BASE64_PATTERN, BASE64_URLSAFE_PATTERN];
 
 const URL_PATTERN = /^(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)$/;
 
-const EXCLUDED_TAGS = ["button", "a", "i", "em"];
+const EXCLUDED_TAGS = ["button", "a", "i", "em", "code"];
 
 let messageElem = null;
 let observer = null;
@@ -22,13 +22,22 @@ let eventListeners = [];
 /// Functions
 ////////////////////////////////////////////////////////////////////////////////
 function detectAndDecodeTextRecursive(node, pattern) {
-  if (node.nodeType === Node.TEXT_NODE &&
-      !EXCLUDED_TAGS.includes(node.parentElement.tagName.toLowerCase())) {
+  if (EXCLUDED_TAGS.includes(node.parentElement.tagName.trim().toLowerCase())) {
+    return;
+  }
+
+  if (node.nodeType === Node.TEXT_NODE) {
     const matches = node.textContent.match(pattern);
-    if (matches &&
-        matches[0] !== "" &&
-        !/^\d+$/.test(matches[0])) {
-      decodedTextMap.set(node, atob(matches[0])) ;
+    if (matches
+        && matches[0] !== ""
+        && !/^\d+$/.test(matches[0])) {
+      try {
+        decodedTextMap.set(node, atob(matches[0]));
+      } catch(e) {
+        const base64String = matches[0].replace(/-/g, '+').replace(/_/g, '/');
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        decodedTextMap.set(node, atob(base64String + padding));
+      }
     }
   }
 
@@ -104,7 +113,15 @@ function mouseDownListener(event) {
 
   event.preventDefault();
 
-  const decodedText = atob(selectedText);
+  let decodedText;
+  try {
+    decodedText = atob(selectedText);
+  } catch(e) {
+    const base64String = selectedText.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    decodedText = atob(base64String + padding);
+  }
+
   navigator.clipboard
     .writeText(decodedText)
     .then(() => {
@@ -189,26 +206,31 @@ function init() {
 ////////////////////////////////////////////////////////////////////////////////
 /// Main
 ////////////////////////////////////////////////////////////////////////////////
-chrome.storage.local.get("isActive", (localData) => {
-  if (localData.isActive) {
-    init();
-  }
-});
-
 /// Add message Listener for popup menu
 ///
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.from === "backgroundjs-popupjs-toggleBtn") {
     if (message.enabled) {
       init();
     } else {
       removeAllEventListeners();
 
-      observer.disconnect();
-      observer = null;
+      if (observer !== null) {
+        observer.disconnect();
+        observer = null;
+      }
 
       document.querySelectorAll('.inserted-tag').forEach(node => node.remove());
       messageElem = null;
+
+      decodedTextMap.clear();
     }
   }
 });
+
+(async () => {
+  const localData = await chrome.storage.local.get("isActive");
+  if (localData.isActive) {
+    init();
+  }
+})();
