@@ -22,7 +22,8 @@ let eventListeners = [];
 /// Functions
 ////////////////////////////////////////////////////////////////////////////////
 function detectAndDecodeTextRecursive(node, pattern) {
-  if (EXCLUDED_TAGS.includes(node.parentElement.tagName.trim().toLowerCase())) {
+  if (node.nodeType === Node.ELEMENT_NODE
+      && EXCLUDED_TAGS.includes(node.tagName.trim().toLowerCase())) {
     return;
   }
 
@@ -184,6 +185,28 @@ function removeAllEventListeners() {
   eventListeners = [];
 }
 
+function onMessageListener(message, sender, sendResponse) {
+  if (message.from !== "backgroundjs-popupjs-toggleBtn") {
+    return;
+  }
+
+  if (message.enabled) {
+    init();
+  } else {
+    removeAllEventListeners();
+
+    if (observer !== null) {
+      observer.disconnect();
+      observer = null;
+    }
+
+    document.querySelectorAll('.inserted-tag').forEach(node => node.remove());
+    messageElem = null;
+
+    decodedTextMap.clear();
+  }
+}
+
 /// Initialization
 ///   1. Detect & Decode encoded-text
 ///   2. Create & Run Observer for new loaded elements
@@ -203,34 +226,23 @@ function init() {
     type: 'mousedown', listener: mouseDownListener});
 }
 
+async function main() {
+  try {
+    const localData = await chrome.storage.local.get("isActive");
+    if (localData.isActive) {
+      init();
+    }
+  } catch (e) {
+    console.error("Error main():", e);
+    return;
+  }
+
+  /// Add message Listener for popup menu
+  ///
+  chrome.runtime.onMessage.addListener(onMessageListener);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Main
 ////////////////////////////////////////////////////////////////////////////////
-/// Add message Listener for popup menu
-///
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.from === "backgroundjs-popupjs-toggleBtn") {
-    if (message.enabled) {
-      init();
-    } else {
-      removeAllEventListeners();
-
-      if (observer !== null) {
-        observer.disconnect();
-        observer = null;
-      }
-
-      document.querySelectorAll('.inserted-tag').forEach(node => node.remove());
-      messageElem = null;
-
-      decodedTextMap.clear();
-    }
-  }
-});
-
-(async () => {
-  const localData = await chrome.storage.local.get("isActive");
-  if (localData.isActive) {
-    init();
-  }
-})();
+main();
