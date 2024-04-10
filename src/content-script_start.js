@@ -32,13 +32,16 @@ function detectAndDecodeTextRecursive(node, pattern) {
     if (matches
         && matches[0] !== ""
         && !/^\d+$/.test(matches[0])) {
+      let decodedText;
       try {
-        decodedTextMap.set(node, atob(matches[0]));
+        decodedText = atob(matches[0]);
       } catch(e) {
         const base64String = matches[0].replace(/-/g, '+').replace(/_/g, '/');
         const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-        decodedTextMap.set(node, atob(base64String + padding));
+        decodedText = atob(base64String + padding);
       }
+
+      decodedTextMap.set(node, decodedText);
     }
   }
 
@@ -96,12 +99,8 @@ function mouseDownListener(event) {
   }
 
   const selectedText = window.getSelection().toString().trim();
-
-  if (selectedText.length === 0) {
-    return;
-  }
-
-  if (/^\d+$/.test(selectedText)) {
+  if (selectedText.length === 0
+      || /^\d+$/.test(selectedText)) {
     return;
   }
 
@@ -144,7 +143,7 @@ function DOMContentLoadedListener() {
   document.body.insertBefore(messageTag, document.body.firstChild);
   messageElem = document.querySelector(".inserted-tag#message");
 
-  BASE64_PATTERN_LIST.forEach(pattern => {
+  BASE64_PATTERN_LIST.forEach((pattern) => {
     detectAndDecodeTextRecursive(document.body, pattern);
   });
 
@@ -155,10 +154,10 @@ function DOMContentLoadedListener() {
   decodedTextMap.clear();
 
   // Create MutationObserver
-  observer = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        BASE64_PATTERN_LIST.forEach(pattern => {
+  observer = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+      m.addedNodes.forEach((node) => {
+        BASE64_PATTERN_LIST.forEach((pattern) => {
           detectAndDecodeTextRecursive(node, pattern);
         });
       });
