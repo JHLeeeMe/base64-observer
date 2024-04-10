@@ -22,7 +22,8 @@ let eventListeners = [];
 /// Functions
 ////////////////////////////////////////////////////////////////////////////////
 function detectAndDecodeTextRecursive(node, pattern) {
-  if (EXCLUDED_TAGS.includes(node.parentElement.tagName.trim().toLowerCase())) {
+  if (node.nodeType === Node.ELEMENT_NODE
+      && EXCLUDED_TAGS.includes(node.tagName.trim().toLowerCase())) {
     return;
   }
 
@@ -31,13 +32,16 @@ function detectAndDecodeTextRecursive(node, pattern) {
     if (matches
         && matches[0] !== ""
         && !/^\d+$/.test(matches[0])) {
+      let decodedText;
       try {
-        decodedTextMap.set(node, atob(matches[0]));
+        decodedText = atob(matches[0]);
       } catch(e) {
         const base64String = matches[0].replace(/-/g, '+').replace(/_/g, '/');
         const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-        decodedTextMap.set(node, atob(base64String + padding));
+        decodedText = atob(base64String + padding);
       }
+
+      decodedTextMap.set(node, decodedText);
     }
   }
 
@@ -95,12 +99,8 @@ function mouseDownListener(event) {
   }
 
   const selectedText = window.getSelection().toString().trim();
-
-  if (selectedText.length === 0) {
-    return;
-  }
-
-  if (/^\d+$/.test(selectedText)) {
+  if (selectedText.length === 0
+      || /^\d+$/.test(selectedText)) {
     return;
   }
 
@@ -143,7 +143,7 @@ function DOMContentLoadedListener() {
   document.body.insertBefore(messageTag, document.body.firstChild);
   messageElem = document.querySelector(".inserted-tag#message");
 
-  BASE64_PATTERN_LIST.forEach(pattern => {
+  BASE64_PATTERN_LIST.forEach((pattern) => {
     detectAndDecodeTextRecursive(document.body, pattern);
   });
 
@@ -154,10 +154,10 @@ function DOMContentLoadedListener() {
   decodedTextMap.clear();
 
   // Create MutationObserver
-  observer = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        BASE64_PATTERN_LIST.forEach(pattern => {
+  observer = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+      m.addedNodes.forEach((node) => {
+        BASE64_PATTERN_LIST.forEach((pattern) => {
           detectAndDecodeTextRecursive(node, pattern);
         });
       });
@@ -184,6 +184,28 @@ function removeAllEventListeners() {
   eventListeners = [];
 }
 
+function onMessageListener(message, sender, sendResponse) {
+  if (message.from !== "backgroundjs-popupjs-toggleBtn") {
+    return;
+  }
+
+  if (message.enabled) {
+    init();
+  } else {
+    removeAllEventListeners();
+
+    if (observer !== null) {
+      observer.disconnect();
+      observer = null;
+    }
+
+    document.querySelectorAll('.inserted-tag').forEach(node => node.remove());
+    messageElem = null;
+
+    decodedTextMap.clear();
+  }
+}
+
 /// Initialization
 ///   1. Detect & Decode encoded-text
 ///   2. Create & Run Observer for new loaded elements
@@ -203,34 +225,23 @@ function init() {
     type: 'mousedown', listener: mouseDownListener});
 }
 
+async function main() {
+  try {
+    const localData = await chrome.storage.local.get("isActive");
+    if (localData.isActive) {
+      init();
+    }
+  } catch (e) {
+    console.error("Error main():", e);
+    return;
+  }
+
+  /// Add message Listener for popup menu
+  ///
+  chrome.runtime.onMessage.addListener(onMessageListener);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Main
 ////////////////////////////////////////////////////////////////////////////////
-/// Add message Listener for popup menu
-///
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.from === "backgroundjs-popupjs-toggleBtn") {
-    if (message.enabled) {
-      init();
-    } else {
-      removeAllEventListeners();
-
-      if (observer !== null) {
-        observer.disconnect();
-        observer = null;
-      }
-
-      document.querySelectorAll('.inserted-tag').forEach(node => node.remove());
-      messageElem = null;
-
-      decodedTextMap.clear();
-    }
-  }
-});
-
-(async () => {
-  const localData = await chrome.storage.local.get("isActive");
-  if (localData.isActive) {
-    init();
-  }
-})();
+main();

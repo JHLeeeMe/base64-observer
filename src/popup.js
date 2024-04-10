@@ -2,21 +2,58 @@
 ///
 ///
 
-let toggleBtn = null;
-let localData = null;
+////////////////////////////////////////////////////////////////////////////////
+/// Functions
+////////////////////////////////////////////////////////////////////////////////
+async function updateToggleBtnStatus() {
+  try {
+    const localData = await chrome.storage.local.get("isActive");
+    const toggleBtn = document.getElementById("toggle-btn");
+    toggleBtn.checked = localData.isActive;
+  } catch (e) {
+    console.error("Error updateToggleBtnStatus():", e);
+  }
+}
 
-document.addEventListener("DOMContentLoaded", async () => {
-  toggleBtn = document.getElementById('toggle-btn');
-  localData = await chrome.storage.local.get("isActive");
-  toggleBtn.checked = localData.isActive;
+async function addToggleBtnChangeEventListener() {
+  const toggleBtn = document.getElementById("toggle-btn");
+  if (toggleBtn === null) {
+    console.warn("toggleBtn is null.");
+    return;
+  }
 
   toggleBtn.addEventListener("change", async () => {
-    localData = await chrome.storage.local.get("isActive");
-    toggleBtn.checked = !localData.isActive;
+    try {
+      const localData = await chrome.storage.local.get("isActive");
+      toggleBtn.checked = !localData.isActive;
 
-    chrome.storage.local.set({isActive: toggleBtn.checked});
+      chrome.storage.local.set({isActive: toggleBtn.checked});
 
-    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-    chrome.runtime.sendMessage({from: "popupjs-toggleBtn", currentTabs: tabs});
+      const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+      chrome.runtime.sendMessage({from: "popupjs-toggleBtn", currentTabs: tabs});
+    } catch (e) {
+      console.error("Error addToggleBtnChangeListener():", e);
+    }
   });
-});
+}
+
+async function DOMContentLoadedListener() {
+  await updateToggleBtnStatus();
+  addToggleBtnChangeEventListener();
+}
+
+function init() {
+  document.addEventListener("DOMContentLoaded", DOMContentLoadedListener);
+  if (document.readyState !== "loading") {
+    DOMContentLoadedListener();
+  }
+}
+
+function main() {
+  init();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Main
+////////////////////////////////////////////////////////////////////////////////
+main();
